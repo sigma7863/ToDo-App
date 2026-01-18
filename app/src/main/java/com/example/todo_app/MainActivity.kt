@@ -1,6 +1,7 @@
 package com.example.todo_app
 
 import android.R.attr.name
+import android.R.attr.text
 import android.R.attr.top
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,17 +12,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -69,6 +76,16 @@ fun MyTodoApp() {
     val todo = remember { mutableStateOf("") } // remember{} でComposable が更新されても {} 内のデータを保持できるようにする(宣言的 UI),  mutableStateOf("") は状態（State）であることを宣言する、初期文字として空文字を設定している、State）をもとにして見た目が更新されます。この State を入力フォームに渡すことで、フォームに入力された文言を保存してそのまま表示できるようになる
     val todoList = remember { mutableStateListOf<String>() } //  mutableStateListOf(): List という型で State を作成する, <String>で文字列のみ受け入れる
 
+    MyTodoAppContent(todo = todo, todoList = todoList)
+}
+
+// Scaffold( ...の部分を別の Composable に移動させて分割, 前に作成した TODO をプレビューで確認できるようにする
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyTodoAppContent(
+    todo: MutableState<String>,
+    todoList: SnapshotStateList<String>
+) {
     Scaffold( // 画面全体のレイアウトを組むための Composable で、トップバーやボトムバー、スナックバーなどを表示する領域を用意してくれている
         topBar = { // トップバー
             TopAppBar(
@@ -85,47 +102,62 @@ fun MyTodoApp() {
                 // Text(text = "My TODO", fontSize = 32.sp) // sp: Scale-independent Pixels（スケールに依存しないピクセル）、ユーザの文字サイズ指定に基づいて大きさが変わる単位
                 .padding(paddingValues)// TopAppBar のスペース確保のために必要である
                 .padding(16.dp) // 画面全体を囲っている Column に対して余白をつけて、フォームに設定している上部の余白を削除する
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                    ) { // Row()で横に並べる、追加ボタンを横に並べる, verticalAlignment = Alignment.CenterVerticallyでRowの中の要素を上下中央揃えにする,  Alignment.Top を設定すれば各要素が上揃えになり、Alignment.Bottom を設定すれば下揃えになる, ユーザの視点で考えると、フォームに入力すると視線が左から右に移動していくので、フォームの右にボタンがあると視線の流れから自然とボタンへ辿り着ける
-                    TextField(
-                        // value = "",
-                        value = todo.value,
-                        // onValueChange = {},
-                        onValueChange = { text ->
-                            todo.value = text
-                        }, // フォームに入力された内容を todo.value へ保存するようにする, フォームに入力された文言が todo.value に保存される → 保存された todo.value がフォームに表示される
-                        // modifier = Modifier.padding(top = 24.dp, bottom = 16.dp) // 上に 24.dp, 下に 16.dp の余白をつける, dp: Density-independent Pixels（密度に依存しないピクセル）の略称で、1dp は中密度（160dpi）の画面における 1 ピクセルと同じ大きさを示します。そのため、どのような解像度の端末でも同じ大きさを表現できる
-                        // modifier = Modifier.padding(bottom = 16.dp)
-                        modifier = Modifier
-                            .padding(end = 16.dp) // 面白い、(end = 16.dp)の部分のendで、アラビア語は左右反転になるため、left, rightじゃ対応できないので、日本語や英語のような左から右に読む言語においては、start は左側、end は右側の指定、アラビア語のような右から左に読む言語においては、start は右側、end は左側の指定になる
-                            .weight(1f) // Row() の中に配置された要素の横幅比を設定する,
-                            // ここでは入力フォームだけに weight() を設定したので、入力フォームの横幅は「追加」ボタンを除いた横幅いっぱいに広がる、逆に言えば、入力フォームは「追加」ボタンを除いた横幅以上には広がらなくなるので、「追加」ボタンを押し出さなくなる
-                            // 文字数を増やしていったときに「追加」ボタンが見切れてしまう問題を修正
-                            // 「追加」ボタンに Modifier.weight(0.5f) を指定すると、フォームと「追加」ボタンの横幅比が 2 : 1（1f : 0.5f）になる
-                    )
-                    Button(onClick = {
-                        todoList.add(todo.value)
-                        todo.value = "" // 「追加」ボタンを押したときにフォームの中身がリセットされるようにする
-                    }) { // 「追加」ボタンを押したときにフォームの文言を保存する
-                        Text(text = "追加")
-                    }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) { // Row()で横に並べる、追加ボタンを横に並べる, verticalAlignment = Alignment.CenterVerticallyでRowの中の要素を上下中央揃えにする,  Alignment.Top を設定すれば各要素が上揃えになり、Alignment.Bottom を設定すれば下揃えになる, ユーザの視点で考えると、フォームに入力すると視線が左から右に移動していくので、フォームの右にボタンがあると視線の流れから自然とボタンへ辿り着ける
+                TextField(
+                    // value = "",
+                    value = todo.value,
+                    // onValueChange = {},
+                    onValueChange = { text ->
+                        todo.value = text
+                    }, // フォームに入力された内容を todo.value へ保存するようにする, フォームに入力された文言が todo.value に保存される → 保存された todo.value がフォームに表示される
+                    // modifier = Modifier.padding(top = 24.dp, bottom = 16.dp) // 上に 24.dp, 下に 16.dp の余白をつける, dp: Density-independent Pixels（密度に依存しないピクセル）の略称で、1dp は中密度（160dpi）の画面における 1 ピクセルと同じ大きさを示します。そのため、どのような解像度の端末でも同じ大きさを表現できる
+                    // modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier
+                        .padding(end = 16.dp) // 面白い、(end = 16.dp)の部分のendで、アラビア語は左右反転になるため、left, rightじゃ対応できないので、日本語や英語のような左から右に読む言語においては、start は左側、end は右側の指定、アラビア語のような右から左に読む言語においては、start は右側、end は左側の指定になる
+                        .weight(1f) // Row() の中に配置された要素の横幅比を設定する,
+                    // ここでは入力フォームだけに weight() を設定したので、入力フォームの横幅は「追加」ボタンを除いた横幅いっぱいに広がる、逆に言えば、入力フォームは「追加」ボタンを除いた横幅以上には広がらなくなるので、「追加」ボタンを押し出さなくなる
+                    // 文字数を増やしていったときに「追加」ボタンが見切れてしまう問題を修正
+                    // 「追加」ボタンに Modifier.weight(0.5f) を指定すると、フォームと「追加」ボタンの横幅比が 2 : 1（1f : 0.5f）になる
+                )
+                Button(onClick = {
+                    todoList.add(todo.value)
+                    todo.value = "" // 「追加」ボタンを押したときにフォームの中身がリセットされるようにする
+                }) { // 「追加」ボタンを押したときにフォームの文言を保存する
+                    Text(text = "追加")
                 }
-                // todoList に入っている値を一覧で表示
-                todoList.forEach { item ->
-                    // Text(text = item)
-                    TodoItem(text = item)
-                }
+            }
+            // todoList に入っている値を一覧で表示
+            todoList.forEachIndexed { index, item -> // forEachIndexed(): リストを各要素ごとに処理を実行するとき、その要素がリストの何番目かを教えてくれる
+                // Text(text = item)
+                TodoItem( // TodoItem() に TODO を削除する関数を渡す
+                    text = item,
+                    deleteTodo = { todoList.removeAt(index) }
+                )
             }
         }
     }
+}
 
 // 編集ボタンや完了ボタン、削除ボタンを追加
 @Composable
-fun TodoItem(text: String) {
-    Text(text = text, modifier = Modifier.padding(vertical = 4.dp))
+// fun TodoItem(text: String) {
+fun TodoItem(text: String, deleteTodo: () -> Unit) { // 関数が引数を必要としない場合は、() の中身を空にしておく, Unit: 返り値がないときに返ってくる型, () -> Unit: 引数がなく返り値もない関数を示している
+    // 削除ボタン
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(text = text,
+            modifier = Modifier
+                .padding(vertical = 4.dp)
+                .weight(1f) // 削除ボタンを必ず右端に配置されるようにして、TODO が適切な位置で改行されるようにする, weight() を使って伸ばして削除ボタンを右端に固定する
+        )
+        // IconButton(onClick = {}) {
+        IconButton(onClick = { deleteTodo() }) { // deleteTodo()で削除ボタンにする
+            Icon(imageVector = Icons.Default.Delete, contentDescription = "削除ボタン") // 、TalkBack でアプリの読み上げを実行したときに contentDescription に指定した言葉が読み上げられる(アクセシビリティ)
+        }
+    }
 }
 
 // @Preview というアノテーションを追加, アプリ(app)を起動しなくても、SplitやDesignで見れるようにする
@@ -134,6 +166,9 @@ fun TodoItem(text: String) {
 fun GreetingPreview() {
     ToDoAppTheme {
         // Greeting("Android")
-        MyTodoApp()
+        MyTodoAppContent(
+            todo = remember { mutableStateOf("文字を入力中...") },
+            todoList = remember { mutableStateListOf("TODO 1", "TODO 2") }
+        )
     }
 }
