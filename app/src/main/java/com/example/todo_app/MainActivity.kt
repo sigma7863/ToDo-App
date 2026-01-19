@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,10 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.todo_app.ui.theme.ToDoAppTheme
+import kotlinx.coroutines.NonCancellable.isCompleted
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,7 +78,7 @@ class MainActivity : ComponentActivity() {
 // 関数を宣言して大文字で始める(compと入力すれば候補として出てくる)
 fun MyTodoApp() {
     val todo = remember { mutableStateOf("") } // remember{} でComposable が更新されても {} 内のデータを保持できるようにする(宣言的 UI),  mutableStateOf("") は状態（State）であることを宣言する、初期文字として空文字を設定している、State）をもとにして見た目が更新されます。この State を入力フォームに渡すことで、フォームに入力された文言を保存してそのまま表示できるようになる
-    val todoList = remember { mutableStateListOf<String>() } //  mutableStateListOf(): List という型で State を作成する, <String>で文字列のみ受け入れる
+    val todoList = remember { mutableStateListOf<Todo>() } //  mutableStateListOf(): List という型で State を作成する, <String>で文字列のみ受け入れる, <Todo> に変更
 
     MyTodoAppContent(todo = todo, todoList = todoList)
 }
@@ -84,7 +88,7 @@ fun MyTodoApp() {
 @Composable
 fun MyTodoAppContent(
     todo: MutableState<String>,
-    todoList: SnapshotStateList<String>
+    todoList: SnapshotStateList<Todo>
 ) {
     Scaffold( // 画面全体のレイアウトを組むための Composable で、トップバーやボトムバー、スナックバーなどを表示する領域を用意してくれている
         topBar = { // トップバー
@@ -124,7 +128,8 @@ fun MyTodoAppContent(
                     // 「追加」ボタンに Modifier.weight(0.5f) を指定すると、フォームと「追加」ボタンの横幅比が 2 : 1（1f : 0.5f）になる
                 )
                 Button(onClick = {
-                    todoList.add(todo.value)
+                    // todoList.add(todo.value)
+                    todoList.add(Todo(text = todo.value, isCompleted = false))
                     todo.value = "" // 「追加」ボタンを押したときにフォームの中身がリセットされるようにする
                 }) { // 「追加」ボタンを押したときにフォームの文言を保存する
                     Text(text = "追加")
@@ -134,8 +139,10 @@ fun MyTodoAppContent(
             todoList.forEachIndexed { index, item -> // forEachIndexed(): リストを各要素ごとに処理を実行するとき、その要素がリストの何番目かを教えてくれる
                 // Text(text = item)
                 TodoItem( // TodoItem() に TODO を削除する関数を渡す
-                    text = item,
-                    deleteTodo = { todoList.removeAt(index) }
+                    // text = item,
+                    todo = item,
+                    deleteTodo = { todoList.removeAt(index) },
+                    completeTodo = { todoList[index] = item.copy(isCompleted = it) } // 、index 番目の TODO にデータを再度入れることで要素を更新
                 )
             }
         }
@@ -145,13 +152,42 @@ fun MyTodoAppContent(
 // 編集ボタンや完了ボタン、削除ボタンを追加
 @Composable
 // fun TodoItem(text: String) {
-fun TodoItem(text: String, deleteTodo: () -> Unit) { // 関数が引数を必要としない場合は、() の中身を空にしておく, Unit: 返り値がないときに返ってくる型, () -> Unit: 引数がなく返り値もない関数を示している
+// fun TodoItem(text: String, deleteTodo: () -> Unit) {
+fun TodoItem(
+    todo: Todo,
+    deleteTodo: () -> Unit,
+    completeTodo: (Boolean) -> Unit // チェックボックスを判別
+) { // 関数が引数を必要としない場合は、() の中身を空にしておく, Unit: 返り値がないときに返ってくる型, () -> Unit: 引数がなく返り値もない関数を示している
+    // Todoが完了している場合に文字の色を薄くする
+    val fontColor = // val fontColor では文字色を保持
+        if (todo.isCompleted) {
+            Color.Gray // 引数の todo のプロパティである isCompleted を見て true だったら Gray を,
+        } else {
+            Color.Black // false だったら Black を入れるようにする
+        }
+    // Todoが完了している場合に打ち消し線をつける
+    val textDecoration =
+        if (todo.isCompleted) {
+            TextDecoration.LineThrough // 打ち消し線(文字の中央に線を引く)
+        } else {
+            null
+        }
     // 削除ボタン
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = text,
+        Text(
+            // text = text,
+            text = todo.text,
             modifier = Modifier
                 .padding(vertical = 4.dp)
-                .weight(1f) // 削除ボタンを必ず右端に配置されるようにして、TODO が適切な位置で改行されるようにする, weight() を使って伸ばして削除ボタンを右端に固定する
+                .weight(1f), // 削除ボタンを必ず右端に配置されるようにして、TODO が適切な位置で改行されるようにする, weight() を使って伸ばして削除ボタンを右端に固定する
+            color = fontColor,
+            textDecoration = textDecoration
+        )
+        // チェックボックス
+        Checkbox(
+            checked = todo.isCompleted, // 。チェックされているかどうかは checked に渡された値で判断して、
+            onCheckedChange = completeTodo, // チェックボックスがタップされたら onCheckedChange に指定された処理を実行する, onCheckedChange は、(Boolean) -> Unit という型の関数を受け取れる、関数の引数に設定されている Boolean は、チェックボックスがタップされたあとの状態を返す、つまり、チェックボックスをタップしてチェックがついたら true、チェックが外れたら false が返ってくる
+            modifier = Modifier.padding(start = 4.dp)
         )
         // IconButton(onClick = {}) {
         IconButton(onClick = { deleteTodo() }) { // deleteTodo()で削除ボタンにする
@@ -168,7 +204,13 @@ fun GreetingPreview() {
         // Greeting("Android")
         MyTodoAppContent(
             todo = remember { mutableStateOf("文字を入力中...") },
-            todoList = remember { mutableStateListOf("TODO 1", "TODO 2") }
+            // todoList = remember { mutableStateListOf("TODO 1", "TODO 2") }
+            todoList = remember {
+                mutableStateListOf(
+                    Todo(text = "長い長い長い長い長い長い長い長い長い長い長い長い長い TODO", isCompleted = false),
+                    Todo(text = "完了したTODO", isCompleted = true)
+                )
+            }
         )
     }
 }
